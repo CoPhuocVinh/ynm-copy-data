@@ -1,0 +1,21 @@
+{
+  "name": "copy-docs-old",
+  "version": "1.0.0",
+  "description": "Old docs copy service",
+  "main": "dist/main.js",
+  "scripts": {
+    "prebuild": "rimraf dist",
+    "build": "nest build",
+    "format": "prettier --write \"src/**/*.ts\"",
+    "start": "nest start",
+    "start:dev": "nest start --watch",
+    "start:debug": "nest start --debug --watch",
+    "start:prod": "node dist/main",
+    "start:consumer": "node dist/main-consumer",
+    "start:producer": "node dist/main-producer",
+    "dev:consumer": "npx ts-node -r tsconfig-paths/register src/main-consumer.ts",
+    "dev:producer": "npx ts-node -r tsconfig-paths/register src/main-producer.ts",
+    "lint": "eslint \"{src,apps,libs}/**/*.ts\" --fix",
+    "dev": "npx ts-node -r tsconfig-paths/register src/main.ts"
+  }
+} 

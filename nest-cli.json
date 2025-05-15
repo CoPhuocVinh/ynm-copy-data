@@ -1,0 +1,31 @@
+{
+  "collection": "@nestjs/schematics",
+  "sourceRoot": "services/copy-docs-real-time/src",
+  "compilerOptions": {
+    "tsConfigPath": "services/copy-docs-real-time/tsconfig.json",
+    "webpack": true,
+    "deleteOutDir": true,
+    "plugins": []
+  },
+  "monorepo": true,
+  "projects": {
+    "copy-docs-real-time": {
+      "type": "application",
+      "root": "services/copy-docs-real-time",
+      "entryFile": "main",
+      "sourceRoot": "services/copy-docs-real-time/src",
+      "compilerOptions": {
+        "tsConfigPath": "services/copy-docs-real-time/tsconfig.json"
+      }
+    },
+    "copy-comments-old": {
+      "type": "application",
+      "root": "services/copy-comments-old",
+      "entryFile": "main",
+      "sourceRoot": "services/copy-comments-old/src",
+      "compilerOptions": {
+        "tsConfigPath": "services/copy-comments-old/tsconfig.json"
+      }
+    }
+  }
+} 
