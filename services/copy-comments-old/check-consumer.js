@@ -3,74 +3,61 @@ const fs = require('fs');
 const yaml = require('js-yaml');
 const path = require('path');
 
-// Load configuration from env.yaml
-function loadConfig() {
+async function checkRabbitMQ() {
   try {
-    const configPath = path.resolve(__dirname, '../../env.yaml');
-    const fileContents = fs.readFileSync(configPath, 'utf8');
-    return yaml.load(fileContents);
-  } catch (err) {
-    console.error('Error loading config:', err);
-    process.exit(1);
-  }
-}
-
-// Create a connection to RabbitMQ
-async function connectToRabbitMQ(config) {
-  const { host, port, username, password, vhost } = config.rabbitmq;
-  const connectionString = `amqp://${username}:${password}@${host}:${port}${vhost}`;
-  
-  console.log(`Connecting to RabbitMQ at ${host}:${port}...`);
-  return await amqp.connect(connectionString);
-}
-
-// Check queue status
-async function checkQueue() {
-  const config = loadConfig();
-  const queueName = config.queue.comments.name;
-  
-  let connection;
-  let channel;
-  
-  try {
+    // Read config
+    const configPath = path.resolve(process.cwd(), 'env.yaml');
+    const config = yaml.load(fs.readFileSync(configPath, 'utf8'));
+    
+    console.log('Config loaded:', JSON.stringify(config, null, 2));
+    
+    // Extract RabbitMQ config
+    const host = config.rabbitmq.host;
+    const port = config.rabbitmq.port;
+    const username = config.rabbitmq.username;
+    const password = config.rabbitmq.password;
+    const vhost = config.rabbitmq.vhost || '/';
+    const queueName = config.queue.comments.name;
+    
+    console.log(`Connecting to RabbitMQ at ${host}:${port}...`);
+    
     // Connect to RabbitMQ
-    connection = await connectToRabbitMQ(config);
-    channel = await connection.createChannel();
+    const connectionUrl = `amqp://${username}:${password}@${host}:${port}/${encodeURIComponent(vhost)}`;
+    const connection = await amqp.connect(connectionUrl);
+    console.log('Connected to RabbitMQ successfully');
     
-    // Check queue info
-    const queueInfo = await channel.assertQueue(queueName, {
-      durable: config.queue.comments.durable,
-      autoDelete: config.queue.comments.autoDelete,
+    // Create a channel
+    const channel = await connection.createChannel();
+    console.log('Created channel successfully');
+    
+    // Check if queue exists
+    const queueInfo = await channel.assertQueue(queueName, { 
+      durable: true,
+      autoDelete: false 
     });
+    console.log(`Queue ${queueName} exists with ${queueInfo.messageCount} messages`);
     
-    console.log(`\nQueue ${queueName} status:`);
-    console.log(`- Messages in queue: ${queueInfo.messageCount}`);
-    console.log(`- Consumers connected: ${queueInfo.consumerCount}`);
+    // Try to get one message but don't consume it
+    console.log(`Trying to check a message from queue ${queueName}...`);
+    const message = await channel.get(queueName, { noAck: true });
     
-    if (queueInfo.consumerCount === 0) {
-      console.log(`\nWARNING: No consumers are connected to the queue!`);
+    if (message) {
+      console.log('Got a message:');
+      const content = message.content.toString();
+      console.log(content);
     } else {
-      console.log(`\nGood! ${queueInfo.consumerCount} consumer(s) connected and processing messages.`);
+      console.log('No messages in queue');
     }
     
-    if (queueInfo.messageCount > 0) {
-      console.log(`\nThere are still ${queueInfo.messageCount} messages waiting to be processed.`);
-    } else {
-      console.log(`\nAll messages have been processed!`);
-    }
+    // Close connection
+    await channel.close();
+    await connection.close();
+    console.log('Connection closed');
     
   } catch (error) {
-    console.error(`Error checking queue: ${error.message}`);
-  } finally {
-    // Close connection
-    if (channel) await channel.close();
-    if (connection) await connection.close();
-    console.log('\nConnection closed');
+    console.error('Error:', error.message);
+    console.error(error.stack);
   }
 }
 
-// Run the function
-checkQueue().catch(err => {
-  console.error('Unhandled error:', err);
-  process.exit(1);
-}); 
+checkRabbitMQ(); 

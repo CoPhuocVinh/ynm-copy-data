@@ -20,7 +20,8 @@
     "run:comments-old": "cd services/copy-comments-old && npx ts-node -r tsconfig-paths/register src/main.ts",
     "run:docs-real-time": "cd services/copy-docs-real-time && npx ts-node -r tsconfig-paths/register src/main.ts",
     "run:comments-real-time": "cd services/copy-comments-real-time && npx ts-node -r tsconfig-paths/register src/main.ts",
-    "run:docs-old": "cd services/copy-docs-old && npx ts-node -r tsconfig-paths/register src/main.ts"
+    "run:docs-old": "cd services/copy-docs-old && npx ts-node -r tsconfig-paths/register src/main.ts",
+    "dev:consumer": "cd services/copy-comments-old && npx ts-node -r tsconfig-paths/register src/main-consumer.ts"
   },
   "keywords": [
     "nestjs",

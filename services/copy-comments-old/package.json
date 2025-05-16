@@ -23,5 +23,9 @@
     "root:build": "cd /home/vinhcp/Workplace/test/test-create-src-copy-data/ynm-copy-data && yarn build",
     "root:start:dev": "cd /home/vinhcp/Workplace/test/test-create-src-copy-data/ynm-copy-data && yarn start:dev",
     "dev": "npx ts-node -r tsconfig-paths/register src/main.ts"
+  },
+  "dependencies": {
+    "amqplib": "^0.10.8",
+    "js-yaml": "^4.1.0"
   }
-} 
+}

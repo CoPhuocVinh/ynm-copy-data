@@ -1,8 +1,8 @@
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
+import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ProducerService } from './producer.service';
 import * as path from 'path';
-import { LibRabbitMQModule } from '../shared/lib-rabbitmq.module';
+import { RabbitMQModule } from '@libs/rabbitmq-adapter';
 
 @Module({
   imports: [
@@ -22,7 +22,29 @@ import { LibRabbitMQModule } from '../shared/lib-rabbitmq.module';
         },
       ],
     }),
-    LibRabbitMQModule,
+    RabbitMQModule.registerAsync({
+      useFactory: (configService: ConfigService) => {
+        return {
+          config: {
+            hostname: configService.get<string>('rabbitmq.host'),
+            port: configService.get<number>('rabbitmq.port'),
+            username: configService.get<string>('rabbitmq.username'),
+            password: configService.get<string>('rabbitmq.password'),
+            vhost: configService.get<string>('rabbitmq.vhost'),
+          },
+          queues: [
+            {
+              name: configService.get<string>('queue.comments.name'),
+              options: {
+                durable: configService.get<boolean>('queue.comments.durable'),
+                autoDelete: configService.get<boolean>('queue.comments.autoDelete'),
+              },
+            },
+          ],
+        };
+      },
+      inject: [ConfigService],
+    }),
   ],
   providers: [ProducerService],
   exports: [ProducerService],

@@ -1,17 +1,13 @@
 import { Module, Global } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { RabbitMQWrapperService } from './rabbitmq-wrapper.service';
+import { RabbitMQModule, RabbitMQService } from '@libs/rabbitmq-adapter';
 
+/**
+ * This module re-exports the RabbitMQModule and RabbitMQService from @libs/rabbitmq-adapter library.
+ */
 @Global()
 @Module({
-  imports: [
-    ConfigModule,
-  ],
-  providers: [
-    RabbitMQWrapperService,
-  ],
-  exports: [
-    RabbitMQWrapperService,
-  ],
+  imports: [RabbitMQModule],
+  providers: [],
+  exports: [RabbitMQModule],
 })
 export class SharedRabbitMQModule {} 
