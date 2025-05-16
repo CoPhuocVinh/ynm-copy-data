@@ -1,177 +1,283 @@
-# RabbitMQ Adapter
+# NestJS RabbitMQ Adapter
 
-A NestJS module for integrating with RabbitMQ for message queuing and event-driven communication.
+A modular, robust, and highly configurable RabbitMQ adapter for NestJS applications with advanced features.
 
 ## Features
 
-- Easy integration with NestJS services
-- Support for publishers and subscribers
-- Automatic reconnection handling
-- Message acknowledgement
-- Type-safe interfaces
-- Flexible configuration options
+- Fully modular architecture with separate managers for different concerns
+- Automatic connection handling with exponential backoff reconnection
+- Connection and channel recovery
+- Consumer auto-recovery after reconnection
+- Publisher confirms and message delivery guarantees
+- Different acknowledgment modes for flexible message processing
+- Advanced configuration options for fine-tuning
+- Typed interfaces and comprehensive documentation
+- Supports all RabbitMQ features (exchanges, queues, bindings, etc.)
+
+## Architecture
+
+The adapter uses a modular architecture with clear separation of concerns through specialized manager classes. Each manager is responsible for a specific aspect of the RabbitMQ communication:
+
+### Core Architecture
+
+```
+                ┌────────────────────────┐
+                │    RabbitMQService     │
+                │  (Orchestration Layer) │
+                └────────────┬───────────┘
+                             │
+         ┌──────────────────┼──────────────────┐
+         │                  │                  │
+┌────────▼───────┐  ┌───────▼────────┐  ┌─────▼─────────┐
+│  Connection    │  │     Channel    │  │    Topology   │
+│    Manager     │  │     Manager    │  │    Manager    │
+└────────┬───────┘  └───────┬────────┘  └─────┬─────────┘
+         │                  │                  │
+         │          ┌───────▼────────┐         │
+         │          │   Publisher    │         │
+         └────────► │    Manager     │ ◄───────┘
+                    └───────┬────────┘
+                            │
+                    ┌───────▼────────┐
+                    │    Consumer    │
+                    │    Manager     │
+                    └────────────────┘
+```
+
+### Manager Classes
+
+#### 1. RabbitMQConnectionManager
+
+**Responsibility**: Manages the AMQP connection lifecycle.
+
+- Establishes and maintains connection to RabbitMQ server
+- Handles connection failures with automatic reconnection
+- Implements exponential backoff reconnection strategy
+- Emits connection events (close, error, blocked, unblocked, reconnected)
+- Provides connection validation and health checks
+
+**Relationships**:
+- Used by RabbitMQService to establish the base connection
+- Provides the connection object to ChannelManager
+
+#### 2. RabbitMQChannelManager
+
+**Responsibility**: Manages channel creation and lifecycle.
+
+- Creates and maintains AMQP channels
+- Sets channel-level configuration (prefetch count, publisher confirms)
+- Handles channel errors and recovery
+- Provides channel validation and health checks
+- Maintains channel event listeners
+
+**Relationships**:
+- Depends on ConnectionManager for the connection instance
+- Provides channels to all other managers (Topology, Publisher, Consumer)
+- Manages channel lifecycle based on connection state
+
+#### 3. RabbitMQTopologyManager
+
+**Responsibility**: Sets up and maintains RabbitMQ topology components.
+
+- Declares exchanges, queues, and bindings
+- Sets up topology based on configuration
+- Handles topology recovery after reconnection
+- Provides methods for dynamic topology changes
+
+**Relationships**:
+- Uses channels from ChannelManager to perform operations
+- Configuration is initialized by RabbitMQService
+- Topology is set up before consumers are started
+
+#### 4. RabbitMQPublisherManager
+
+**Responsibility**: Handles all aspects of message publishing.
+
+- Publishes messages to exchanges with retry capability
+- Handles publisher confirms for delivery guarantees
+- Implements error handling and retry logic
+- Provides consistent interface for publishing with common options
+
+**Relationships**:
+- Uses channels from ChannelManager
+- Depends on TopologyManager to ensure exchanges exist
+- Used by RabbitMQService for all publishing operations
+
+#### 5. RabbitMQConsumerManager
+
+**Responsibility**: Manages message consumption and processing.
+
+- Starts and manages consumers for queues
+- Handles message acknowledgment with different strategies
+- Recovers consumers after connection/channel failures
+- Manages consumer tags and cancellation
+
+**Relationships**:
+- Uses channels from ChannelManager
+- Depends on TopologyManager to ensure queues exist
+- Used by RabbitMQService for all consuming operations
+- Handles acknowledgment for processed messages
+
+### Control Flow
+
+1. RabbitMQService initializes all managers with appropriate configuration
+2. ConnectionManager establishes the connection to RabbitMQ
+3. ChannelManager creates channels on top of the connection
+4. TopologyManager sets up exchanges, queues, and bindings
+5. PublisherManager uses channels for message publishing
+6. ConsumerManager sets up message consumers
+7. On reconnection, this flow is repeated automatically
 
 ## Installation
 
-This library is included as part of the monorepo. To use it in your service, you just need to import it.
+```bash
+npm install @your-org/rabbitmq-adapter
+```
 
-## Usage
+## Basic Usage
 
-### Importing the module
-
-To use the RabbitMQ adapter in your service, import the `RabbitMQModule` in your module file:
+### Module Registration
 
 ```typescript
 import { Module } from '@nestjs/common';
-import { ConfigModule } from '@nestjs/config';
-import { RabbitMQModule } from '@libs/rabbitmq-adapter';
-import appConfig from '../config/app.config';
+import { RabbitMQModule } from '@your-org/rabbitmq-adapter';
 
 @Module({
   imports: [
-    ConfigModule.forRoot({
-      load: [appConfig],
-    }),
     RabbitMQModule.register({
-      // Optional custom configuration
-    }),
+      config: {
+        hostname: 'localhost',
+        port: 5672,
+        username: 'guest',
+        password: 'guest',
+        // Connection settings
+        reconnect: {
+          enabled: true,
+          maxAttempts: 30
+        },
+        // Channel settings
+        channel: {
+          prefetchCount: 10,
+          enablePublisherConfirms: true
+        },
+        // Publisher settings
+        publisher: {
+          retryFailedPublishes: true,
+          maxPublishRetries: 3
+        }
+      },
+      // Topology configuration
+      queues: [
+        { name: 'my-queue', options: { durable: true } }
+      ],
+      exchanges: [
+        { name: 'my-exchange', type: 'topic', options: { durable: true } }
+      ],
+      bindings: [
+        { queue: 'my-queue', exchange: 'my-exchange', routingKey: 'my.routing.key' }
+      ],
+      // Consumer configuration
+      consumers: [
+        { queue: 'my-queue', ackMode: 'post_process' }
+      ]
+    })
   ],
-  providers: [YourService],
+  controllers: [AppController],
+  providers: [AppService],
 })
-export class YourModule {}
+export class AppModule {}
 ```
 
-### Using the service for consuming messages
+### Using the Service
 
 ```typescript
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { RabbitMQService } from '@libs/rabbitmq-adapter';
+import { Injectable } from '@nestjs/common';
+import { RabbitMQService, AckMode } from '@your-org/rabbitmq-adapter';
 
 @Injectable()
-export class ConsumerService {
-  private readonly logger = new Logger(ConsumerService.name);
+export class AppService {
+  constructor(private readonly rabbitmqService: RabbitMQService) {}
 
-  constructor(
-    private readonly rabbitMQService: RabbitMQService,
-    private readonly configService: ConfigService,
-  ) {}
-
-  async initialize() {
-    const queueName = this.configService.get<string>('queue.name');
-    
-    // Set up a consumer
-    await this.rabbitMQService.consume(
-      queueName,
-      async (message) => {
-        try {
-          // Process the message
-          const content = JSON.parse(message.content.toString());
-          this.logger.log(`Processing message: ${JSON.stringify(content)}`);
-          
-          // Your message processing logic here
-          
-          // Acknowledge the message
-          return true; // Return true to acknowledge the message
-        } catch (error) {
-          this.logger.error(`Error processing message: ${error.message}`);
-          return false; // Return false to reject the message
+  async onModuleInit() {
+    // Start consuming messages
+    await this.rabbitmqService.consume(
+      'my-queue',
+      (msg) => {
+        if (msg) {
+          console.log('Received message:', msg.content.toString());
+          // Process message...
+          this.rabbitmqService.ack(msg);
         }
-      }
+      },
+      { noAck: false },
+      AckMode.POST_PROCESS
     );
   }
-}
-```
 
-### Using the service for producing messages
-
-```typescript
-import { Injectable, Logger } from '@nestjs/common';
-import { ConfigService } from '@nestjs/config';
-import { RabbitMQService } from '@libs/rabbitmq-adapter';
-
-@Injectable()
-export class ProducerService {
-  private readonly logger = new Logger(ProducerService.name);
-
-  constructor(
-    private readonly rabbitMQService: RabbitMQService,
-    private readonly configService: ConfigService,
-  ) {}
-
-  async sendMessage(data: any) {
-    const queueName = this.configService.get<string>('queue.name');
+  async sendMessage(message: string) {
+    // Publish a message
+    const success = await this.rabbitmqService.publish(
+      'my-exchange',
+      'my.routing.key',
+      Buffer.from(message),
+      { persistent: true }
+    );
     
-    try {
-      // Send a message to the queue
-      await this.rabbitMQService.sendToQueue(
-        queueName,
-        data,
-        {
-          persistent: true, // Make the message persistent
-        }
-      );
-      
-      this.logger.log(`Message sent to queue: ${queueName}`);
-      return true;
-    } catch (error) {
-      this.logger.error(`Error sending message: ${error.message}`);
-      throw error;
-    }
+    return success;
   }
 }
 ```
 
-## Configuration
+## Advanced Configuration
 
-The RabbitMQ adapter uses the following configuration structure:
+### Acknowledgment Modes
+
+The adapter supports three acknowledgment modes:
+
+- `AckMode.PRE_PROCESS`: Acknowledge before processing (risks message loss but prevents channel closed errors)
+- `AckMode.POST_PROCESS`: Acknowledge after processing (ensures delivery but may have channel errors)
+- `AckMode.BEST_EFFORT`: Best effort acknowledgment (prevents errors if channel closes)
+
+### Publisher Confirms
+
+Enable publisher confirms for stronger delivery guarantees:
 
 ```typescript
-// In your env.yaml
-rabbitmq:
-  host: localhost
-  port: 5672
-  username: guest
-  password: guest
-  vhost: /
-  ssl: false
-  connectionTimeout: 5000
-  heartbeat: 10
-  prefetchCount: 10
+RabbitMQModule.register({
+  config: {
+    hostname: 'localhost',
+    // ... other connection options
+    channel: {
+      enablePublisherConfirms: true,
+    },
+    publisher: {
+      retryFailedPublishes: true,
+      maxPublishRetries: 3,
+    }
+  }
+})
 ```
 
-## API Reference
+### Reconnection Policy
 
-### RabbitMQModule
+Configure automatic reconnection behavior:
 
-- `register(options?: RabbitMQModuleOptions)`: Register the module with optional configuration
-- `registerAsync(options)`: Register the module with async configuration
+```typescript
+RabbitMQModule.register({
+  config: {
+    hostname: 'localhost',
+    // ... other connection options
+    reconnect: {
+      enabled: true,
+      maxAttempts: 30,
+      initialTimeout: 1000,
+      maxTimeout: 30000,
+      backoffFactor: 2
+    }
+  }
+})
+```
 
-### RabbitMQService
+## License
 
-- `connect()`: Connect to RabbitMQ server
-- `createChannel()`: Create a new channel
-- `sendToQueue(queue, content, options?)`: Send a message to a queue
-- `assertQueue(queue, options?)`: Assert a queue exists
-- `bindQueue(queue, exchange, pattern)`: Bind a queue to an exchange
-- `consume(queue, callback, options?)`: Consume messages from a queue
-- `publish(exchange, routingKey, content, options?)`: Publish a message to an exchange
-- `createExchange(name, type, options?)`: Create an exchange
-- `close()`: Close the connection
-
-## Error Handling and Reconnection
-
-The RabbitMQ adapter handles connection errors automatically and implements a reconnection strategy with exponential backoff. The service will log connection issues and attempt to reconnect when the connection is lost.
-
-## Best Practices
-
-1. Always acknowledge messages after processing
-2. Use appropriate queue and exchange options
-3. Implement error handling in your message processing logic
-4. Set up proper logging
-5. Configure message persistence for important messages
-6. Implement graceful shutdown of consumers
-
-## Extending the Adapter
-
-If you need to extend the functionality of the RabbitMQ adapter, you can create a custom service that extends the base `RabbitMQService`. 
+MIT 

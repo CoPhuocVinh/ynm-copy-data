@@ -2,7 +2,7 @@ import { registerAs } from '@nestjs/config';
 import * as yaml from 'js-yaml';
 import * as fs from 'fs';
 import * as path from 'path';
-import { RabbitMQConfig } from './rabbitmq.interface';
+import { RabbitMQConfig } from './interfaces';
 
 export const loadConfig = (envFilePath: string = 'env.yaml'): Record<string, any> => {
   try {
@@ -27,5 +27,22 @@ export const rabbitMQConfig = registerAs('rabbitmq', (): RabbitMQConfig => {
     vhost: process.env.RABBITMQ_VHOST || config.rabbitmq?.vhost || '/',
     heartbeat: parseInt(process.env.RABBITMQ_HEARTBEAT || config.rabbitmq?.heartbeat || '0', 10),
     frameMax: parseInt(process.env.RABBITMQ_FRAME_MAX || config.rabbitmq?.frameMax || '0', 10),
+    channel: {
+      prefetchCount: parseInt(process.env.RABBITMQ_PREFETCH || config.rabbitmq?.prefetch || '1', 10),
+      enablePublisherConfirms: process.env.RABBITMQ_PUBLISHER_CONFIRMS === 'true' || 
+                              config.rabbitmq?.publisherConfirms === true || false,
+    },
+    publisher: {
+      retryFailedPublishes: process.env.RABBITMQ_RETRY_PUBLISHES === 'true' || 
+                           config.rabbitmq?.retryPublishes === true || true,
+      maxPublishRetries: parseInt(process.env.RABBITMQ_MAX_PUBLISH_RETRIES || 
+                                 config.rabbitmq?.maxPublishRetries || '3', 10),
+    },
+    reconnect: {
+      enabled: process.env.RABBITMQ_RECONNECT_ENABLED !== 'false' && 
+               config.rabbitmq?.reconnect?.enabled !== false,
+      maxAttempts: parseInt(process.env.RABBITMQ_RECONNECT_MAX_ATTEMPTS || 
+                           config.rabbitmq?.reconnect?.maxAttempts || '30', 10),
+    }
   };
 }); 
