@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Old docs copy service",
   "main": "dist/main.js",
+  "license": "ISC",
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "nest build",

@@ -44,4 +44,3 @@ Thumbs.db
 .tsbuildinfo
 
 # Service to ignore
-services/copy-docs-real-time/ 

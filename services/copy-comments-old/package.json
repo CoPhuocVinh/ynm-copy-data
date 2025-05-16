@@ -3,6 +3,7 @@
   "version": "1.0.0",
   "description": "Old comments copy service",
   "main": "dist/src/main-consumer.js",
+  "license": "ISC",
   "scripts": {
     "clean": "rimraf dist",
     "build": "tsc -p tsconfig.json",
