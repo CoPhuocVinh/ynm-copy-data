@@ -27,6 +27,7 @@ export class ConsumerService implements OnModuleInit {
   private processedMessages = new Map<string, ProcessedMessage>();
   private readonly maxProcessedMessagesSize = MAX_PROCESSED_MESSAGES_SIZE;
   private readonly messageExpiryTime = MESSAGE_EXPIRY_TIME;
+  private isInitialized = false;
 
   constructor(
     private readonly rabbitMQService: RabbitMQService,
@@ -43,10 +44,16 @@ export class ConsumerService implements OnModuleInit {
 
   // Manual initialization
   async initialize() {
+    if (this.isInitialized) {
+      this.logger.log('Consumer service already initialized, skipping initialization');
+      return this;
+    }
+    
     this.logger.log('Manually initializing consumer service');
     await this.startConsumer();
     this.startStatsReporting();
     this.startCacheCleanup();
+    this.isInitialized = true;
     return this;
   }
 
@@ -54,6 +61,7 @@ export class ConsumerService implements OnModuleInit {
     if (this.statsReportingInterval) {
       clearInterval(this.statsReportingInterval);
     }
+    this.isInitialized = false;
     this.logger.log('Consumer service shutdown complete');
   }
 

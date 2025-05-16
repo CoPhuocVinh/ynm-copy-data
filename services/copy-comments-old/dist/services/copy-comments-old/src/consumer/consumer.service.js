@@ -29,6 +29,7 @@ let ConsumerService = ConsumerService_1 = class ConsumerService {
         this.processedMessages = new Map();
         this.maxProcessedMessagesSize = shared_1.MAX_PROCESSED_MESSAGES_SIZE;
         this.messageExpiryTime = shared_1.MESSAGE_EXPIRY_TIME;
+        this.isInitialized = false;
         this.queueName = this.configService.get('queue.comments.name');
     }
     async onModuleInit() {
@@ -36,16 +37,22 @@ let ConsumerService = ConsumerService_1 = class ConsumerService {
         await this.initialize();
     }
     async initialize() {
+        if (this.isInitialized) {
+            this.logger.log('Consumer service already initialized, skipping initialization');
+            return this;
+        }
         this.logger.log('Manually initializing consumer service');
         await this.startConsumer();
         this.startStatsReporting();
         this.startCacheCleanup();
+        this.isInitialized = true;
         return this;
     }
     async shutdown() {
         if (this.statsReportingInterval) {
             clearInterval(this.statsReportingInterval);
         }
+        this.isInitialized = false;
         this.logger.log('Consumer service shutdown complete');
     }
     async startConsumer() {

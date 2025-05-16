@@ -21,9 +21,31 @@ let ProducerService = ProducerService_1 = class ProducerService {
         this.rabbitMQService = rabbitMQService;
         this.configService = configService;
         this.logger = new common_1.Logger(ProducerService_1.name);
+        this.isInitialized = false;
         this.queueName = this.configService.get('queue.comments.name');
     }
+    async onModuleInit() {
+        this.logger.log('Auto initializing producer service via OnModuleInit');
+        await this.initialize();
+    }
+    async initialize() {
+        if (this.isInitialized) {
+            this.logger.log('Producer service already initialized, skipping initialization');
+            return this;
+        }
+        this.logger.log('Initializing producer service');
+        this.logger.log(`Initializing connection to RabbitMQ queue: ${this.queueName}`);
+        this.isInitialized = true;
+        return this;
+    }
+    async shutdown() {
+        this.logger.log('Producer service shutdown complete');
+        this.isInitialized = false;
+    }
     async sendCommentCopyRequest(payload) {
+        if (!this.isInitialized) {
+            await this.initialize();
+        }
         try {
             const id = (0, uuid_1.v4)();
             const message = {

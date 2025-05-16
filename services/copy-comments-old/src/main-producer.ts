@@ -13,8 +13,9 @@ async function bootstrap() {
   const configService = app.get(ConfigService);
   const port = configService.get<number>('app.port') || 3002;
   
-  // Get the producer service
+  // Get the producer service - không cần gọi initialize vì đã được xử lý qua OnModuleInit
   const producerService = app.get(ProducerService);
+  // ProducerService sẽ tự động khởi tạo qua onModuleInit, không cần gọi lại ở đây
   
   // Automatically send messages every 10 seconds
   const autoSendInterval = 10000; // 10 seconds
@@ -46,6 +47,8 @@ async function bootstrap() {
     process.on(signal, async () => {
       logger.log(`Received ${signal}, gracefully shutting down...`);
       clearInterval(intervalId);
+      // Đảm bảo shutdown ProducerService đúng cách
+      await producerService.shutdown();
       await app.close();
       process.exit(0);
     });

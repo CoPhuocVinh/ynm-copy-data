@@ -13,9 +13,9 @@
     "dev": "ts-node -r tsconfig-paths/register src/main-consumer.ts",
     "dev:consumer": "ts-node -r tsconfig-paths/register src/main-consumer.ts",
     "dev:producer": "ts-node -r tsconfig-paths/register src/main-producer.ts",
-    "start": "node dist/src/main-consumer.js",
-    "start:consumer": "node dist/src/main-consumer.js",
-    "start:producer": "node dist/src/main-producer.js"
+    "start": "node -r tsconfig-paths/register dist/services/copy-comments-old/src/main-consumer.js",
+    "start:consumer": "node -r tsconfig-paths/register dist/services/copy-comments-old/src/main-consumer.js",
+    "start:producer": "node -r tsconfig-paths/register dist/services/copy-comments-old/src/main-producer.js"
   },
   "dependencies": {
     "amqplib": "^0.10.8",

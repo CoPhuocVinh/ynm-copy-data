@@ -1,4 +1,4 @@
-import { Injectable, Logger } from '@nestjs/common';
+import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { RabbitMQService } from '@libs/rabbitmq-adapter';
@@ -11,15 +11,43 @@ import {
 } from '../shared';
 
 @Injectable()
-export class ProducerService {
+export class ProducerService implements OnModuleInit {
   private readonly logger = new Logger(ProducerService.name);
   private readonly queueName: string;
+  private isInitialized = false;
 
   constructor(
     private readonly rabbitMQService: RabbitMQService,
     private readonly configService: ConfigService,
   ) {
     this.queueName = this.configService.get<string>('queue.comments.name');
+  }
+  
+  // Auto initialize with OnModuleInit
+  async onModuleInit() {
+    this.logger.log('Auto initializing producer service via OnModuleInit');
+    await this.initialize();
+  }
+  
+  // Manual initialization
+  async initialize() {
+    if (this.isInitialized) {
+      this.logger.log('Producer service already initialized, skipping initialization');
+      return this;
+    }
+    
+    this.logger.log('Initializing producer service');
+    // Verify RabbitMQ connection works by checking if the connection exists
+    // Chỉ ghi log, không thực sự kiểm tra kết nối vì RabbitMQService tự động xử lý kết nối
+    this.logger.log(`Initializing connection to RabbitMQ queue: ${this.queueName}`);
+    this.isInitialized = true;
+    return this;
+  }
+  
+  // Shutdown method for cleanup
+  async shutdown() {
+    this.logger.log('Producer service shutdown complete');
+    this.isInitialized = false;
   }
 
   /**
@@ -28,6 +56,11 @@ export class ProducerService {
    * @returns ID of the sent copy request
    */
   async sendCommentCopyRequest(payload: CommentCopyRequestDto): Promise<string> {
+    // Ensure service is initialized
+    if (!this.isInitialized) {
+      await this.initialize();
+    }
+    
     try {
       const id = uuidv4();
       const message: CommentCopyPayload = {

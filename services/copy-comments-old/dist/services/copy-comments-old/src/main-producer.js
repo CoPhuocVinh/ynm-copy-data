@@ -33,6 +33,7 @@ async function bootstrap() {
         process.on(signal, async () => {
             logger.log(`Received ${signal}, gracefully shutting down...`);
             clearInterval(intervalId);
+            await producerService.shutdown();
             await app.close();
             process.exit(0);
         });

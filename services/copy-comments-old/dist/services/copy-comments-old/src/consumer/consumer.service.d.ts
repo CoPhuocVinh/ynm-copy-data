@@ -12,6 +12,7 @@ export declare class ConsumerService implements OnModuleInit {
     private processedMessages;
     private readonly maxProcessedMessagesSize;
     private readonly messageExpiryTime;
+    private isInitialized;
     constructor(rabbitMQService: RabbitMQService, configService: ConfigService);
     onModuleInit(): Promise<void>;
     initialize(): Promise<this>;

@@ -10,7 +10,6 @@ async function bootstrap() {
     const app = await core_1.NestFactory.create(consumer_module_1.ConsumerModule);
     const configService = app.get(config_1.ConfigService);
     const consumerService = app.get(consumer_service_1.ConsumerService);
-    await consumerService.initialize();
     logger.log(`Consumer service ${configService.get('app.name')} is running`);
     logger.log(`Connected to RabbitMQ at ${configService.get('rabbitmq.host')}:${configService.get('rabbitmq.port')}`);
     logger.log(`Listening to queue: ${configService.get('queue.comments.name')}`);

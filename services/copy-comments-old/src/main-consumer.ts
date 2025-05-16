@@ -12,9 +12,10 @@ async function bootstrap() {
   
   const configService = app.get(ConfigService);
   
-  // Get the consumer service and manually initialize it
+  // Get the consumer service - không cần gọi initialize vì đã được xử lý qua OnModuleInit
   const consumerService = app.get(ConsumerService);
-  await consumerService.initialize();
+  // ConsumerService sẽ tự động khởi tạo qua onModuleInit, không cần gọi lại ở đây
+  // await consumerService.initialize();
   
   logger.log(`Consumer service ${configService.get<string>('app.name')} is running`);
   logger.log(`Connected to RabbitMQ at ${configService.get<string>('rabbitmq.host')}:${configService.get<number>('rabbitmq.port')}`);
