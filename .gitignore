@@ -2,6 +2,13 @@
 /node_modules
 /.pnp
 .pnp.js
+node_modules
+dist
+yarn.lock
+package-lock.json
+
+lerna-debug.log
+.idea
 
 # build outputs
 /dist
