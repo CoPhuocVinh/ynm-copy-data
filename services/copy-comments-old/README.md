@@ -2,6 +2,22 @@
 
 This service connects to RabbitMQ to copy old comments data. It demonstrates both producing messages to the queue and consuming messages from the queue.
 
+## Directory Structure
+
+```
+services/copy-comments-old/
+├── src/                       # Source code
+│   ├── shared/                # Shared modules and services
+│   ├── consumer/              # Consumer-related code
+│   ├── producer/              # Producer-related code
+│   ├── command/               # Command-related code
+│   ├── main-consumer.ts       # Entry point for consumer application
+│   └── main-producer.ts       # Entry point for producer application
+├── env.yaml                   # Environment configuration
+├── package.json               # Project dependencies and scripts
+└── tsconfig.json              # TypeScript configuration
+```
+
 ## Configuration
 
 The service is configured via the `env.yaml` file:
@@ -29,42 +45,38 @@ queue:
 
 ## Running the Service
 
-The service can be run using the provided `run.sh` script:
+You can use npm/yarn scripts to run the service:
 
 ```bash
+# Development mode
+yarn dev:consumer       # Run consumer only
+yarn dev:producer       # Run producer only
+
 # Build the service
-./run.sh build
+yarn build              # Build the service
+yarn clean              # Remove the dist directory
 
-# Start the service (this will run the consumer)
-./run.sh start
-
-# Start in development mode with hot reload
-./run.sh start:dev
-
-# Send test messages to the queue
-./run.sh send 10  # Sends 10 messages
+# Production mode (after building)
+yarn start:consumer     # Run consumer only
+yarn start:producer     # Run producer only
 ```
 
-## How It Works
+## Architecture Overview
 
-1. The service connects to the RabbitMQ server using the credentials in the config file
-2. It sets up the queue `data_copy_queue` 
-3. The consumer listens for messages on this queue and processes them
-4. The producer can send messages to the queue using the `send` command
+This service follows a microservice architecture with separate producer and consumer components. Both can be run independently.
 
-## Example Workflow
+### Key Components
 
-1. Start the service in one terminal:
-   ```
-   ./run.sh start
-   ```
+1. **Consumer Service** - Listens for messages on the configured queue and processes comment copy requests
+2. **Producer Service** - Sends comment copy requests to RabbitMQ
 
-2. In another terminal, send some test messages:
-   ```
-   ./run.sh send 5
-   ```
+### Message Flow
 
-3. Watch the service process the messages in the first terminal
+1. Producer creates a message with a unique ID and sends it to the queue
+2. RabbitMQ stores the message until a consumer is ready to process it
+3. Consumer receives the message and attempts to process it
+4. If processing succeeds, the message is acknowledged and removed from the queue
+5. If processing fails, the message is nacked (negative acknowledgement) and can be requeued
 
 ## Sample Message Format
 

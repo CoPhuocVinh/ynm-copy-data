@@ -2,30 +2,31 @@
   "name": "copy-comments-old",
   "version": "1.0.0",
   "description": "Old comments copy service",
-  "main": "dist/main.js",
+  "main": "dist/src/main-consumer.js",
   "scripts": {
-    "prebuild": "rimraf dist",
-    "build": "nest build",
-    "format": "prettier --write \"src/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "start:consumer": "node dist/main-consumer",
-    "start:producer": "node dist/main-producer",
-    "dev:consumer": "npx ts-node -r tsconfig-paths/register src/main-consumer.ts",
-    "dev:producer": "npx ts-node -r tsconfig-paths/register src/main-producer.ts",
-    "lint": "eslint \"{src,apps,libs}/**/*.ts\" --fix",
-    "test": "jest",
-    "test:watch": "jest --watch",
-    "test:cov": "jest --coverage",
-    "test:debug": "node --inspect-brk -r tsconfig-paths/register -r ts-node/register node_modules/.bin/jest --runInBand",
-    "root:build": "cd /home/vinhcp/Workplace/test/test-create-src-copy-data/ynm-copy-data && yarn build",
-    "root:start:dev": "cd /home/vinhcp/Workplace/test/test-create-src-copy-data/ynm-copy-data && yarn start:dev",
-    "dev": "npx ts-node -r tsconfig-paths/register src/main.ts"
+    "clean": "rimraf dist",
+    "build": "tsc -p tsconfig.json",
+    "format": "prettier --write \"./src/**/*.ts\"",
+    "lint": "eslint \"./src/**/*.ts\"",
+    "lint:fix": "eslint \"./src/**/*.ts\" --fix",
+    "dev": "ts-node -r tsconfig-paths/register src/main-consumer.ts",
+    "dev:consumer": "ts-node -r tsconfig-paths/register src/main-consumer.ts",
+    "dev:producer": "ts-node -r tsconfig-paths/register src/main-producer.ts",
+    "start": "node dist/src/main-consumer.js",
+    "start:consumer": "node dist/src/main-consumer.js",
+    "start:producer": "node dist/src/main-producer.js"
   },
   "dependencies": {
     "amqplib": "^0.10.8",
     "js-yaml": "^4.1.0"
+  },
+  "devDependencies": {
+    "@types/node": "^22.15.18",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.5",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.8.3"
   }
 }

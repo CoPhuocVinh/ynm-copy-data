@@ -6,16 +6,30 @@
   "scripts": {
     "prebuild": "rimraf dist",
     "build": "nest build",
+    "clean": "rimraf dist",
     "format": "prettier --write \"src/**/*.ts\"",
-    "start": "nest start",
-    "start:dev": "nest start --watch",
-    "start:debug": "nest start --debug --watch",
-    "start:prod": "node dist/main",
-    "start:consumer": "node dist/main-consumer",
-    "start:producer": "node dist/main-producer",
-    "dev:consumer": "npx ts-node -r tsconfig-paths/register src/main-consumer.ts",
-    "dev:producer": "npx ts-node -r tsconfig-paths/register src/main-producer.ts",
-    "lint": "eslint \"{src,apps,libs}/**/*.ts\" --fix",
-    "dev": "npx ts-node -r tsconfig-paths/register src/main.ts"
+    "lint": "eslint \"{src,apps,libs}/**/*.ts\"",
+    "lint:fix": "eslint \"{src,apps,libs}/**/*.ts\" --fix",
+    "dev": "ts-node -r tsconfig-paths/register src/main-consumer.ts",
+    "dev:consumer": "ts-node -r tsconfig-paths/register src/main-consumer.ts",
+    "dev:producer": "ts-node -r tsconfig-paths/register src/main-producer.ts",
+    "start": "node dist/main.js",
+    "start:consumer": "node dist/main-consumer.js",
+    "start:producer": "node dist/main-producer.js"
+  },
+  "dependencies": {
+    "@nestjs/common": "^11.1.1",
+    "@nestjs/core": "^11.1.1",
+    "amqplib": "^0.10.8"
+  },
+  "devDependencies": {
+    "@nestjs/cli": "^11.0.7",
+    "@types/node": "^22.15.18",
+    "eslint": "^8.56.0",
+    "prettier": "^3.2.5",
+    "rimraf": "^6.0.1",
+    "ts-node": "^10.9.2",
+    "tsconfig-paths": "^4.2.0",
+    "typescript": "^5.8.3"
   }
 } 

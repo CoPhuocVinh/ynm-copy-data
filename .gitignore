@@ -12,8 +12,10 @@
 logs
 *.log
 npm-debug.log*
+pnpm-debug.log*
 yarn-debug.log*
 yarn-error.log*
+lerna-debug.log*
 
 # environment variables
 .env
@@ -34,8 +36,12 @@ Thumbs.db
 
 # testing
 /coverage
+/.nyc_output
 
 # cache
 .npm
 .eslintcache
-.tsbuildinfo 
+.tsbuildinfo
+
+# Service to ignore
+services/copy-docs-real-time/ 
