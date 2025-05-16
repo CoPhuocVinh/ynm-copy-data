@@ -29,10 +29,16 @@ export enum AckMode {
   BEST_EFFORT = 'best_effort'
 }
 
+// Extend ConsumeMessage with additional properties
+interface ExtendedConsumeMessage extends amqplib.ConsumeMessage {
+  __preAcknowledged?: boolean;
+  __channelId?: number;
+}
+
 @Injectable()
 export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModuleDestroy {
   private readonly logger = new Logger(RabbitMQService.name);
-  private _connection: any; // Using 'any' to avoid TypeScript errors with amqplib types
+  private _connection: any; // Using 'any' for amqplib Connection
   private _channel: amqplib.Channel;
   private readonly config: RabbitMQConfig;
   private readonly queues: RabbitMQQueueConfig[] = [];
@@ -43,12 +49,12 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
   private reconnectTimeout = 1000;
   private isReconnecting = false;
   private connectionString: string;
-  private consumerTags: Map<string, string> = new Map(); // Lưu trữ consumer tag theo queue
-  private consumers: Map<string, (msg: amqplib.ConsumeMessage | null) => void> = new Map(); // Lưu trữ consumer callback theo queue
-  private consumerOptions: Map<string, amqplib.Options.Consume> = new Map(); // Lưu trữ consumer options theo queue
+  private consumerTags = new Map<string, string>();
+  private consumers = new Map<string, (msg: amqplib.ConsumeMessage | null) => void>();
+  private consumerOptions = new Map<string, amqplib.Options.Consume>();
   private defaultAckMode: AckMode = AckMode.BEST_EFFORT;
-  private consumerAckModes: Map<string, AckMode> = new Map(); // Lưu trữ chế độ xác nhận theo queue
-  private _channelId: number = 0;  // Track channel ID to detect channel changes
+  private consumerAckModes = new Map<string, AckMode>();
+  private _channelId = 0;
 
   constructor(
     private readonly configService: ConfigService,
@@ -74,7 +80,6 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
 
   /**
    * Kiểm tra xem kênh hiện tại có hợp lệ để thực hiện các hoạt động không
-   * @returns boolean - true nếu kênh hợp lệ, false nếu không
    */
   isChannelValid(): boolean {
     return Boolean(this._connection && this._channel && this._channel.connection);
@@ -82,13 +87,11 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
 
   /**
    * Tạo một kênh mới nếu cần thiết
-   * @returns Promise<boolean> - true nếu kênh hợp lệ hoặc đã được tạo mới, false nếu không thể tạo kênh
    */
   async ensureChannel(): Promise<boolean> {
     if (!this.isChannelValid()) {
       try {
         await this.createChannel();
-        // Nếu tạo channel thành công, khôi phục các consumer đã đăng ký
         await this.restoreConsumers();
         return true;
       } catch (error) {
@@ -121,15 +124,11 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
         
         // Set prefetch count for this specific queue if configured
         const queueConfig = this.queues.find(q => q.name === queue);
-        if (queueConfig && queueConfig.prefetchCount !== undefined) {
-          this.logger.debug(`Setting prefetch count for queue ${queue} to ${queueConfig.prefetchCount} during restore`);
+        if (queueConfig?.prefetchCount !== undefined) {
           await this._channel.prefetch(queueConfig.prefetchCount);
         }
         
-        // Sử dụng phương thức consume() để đăng ký lại consumer
-        // Điều này đảm bảo rằng các wrapper callbacks được tạo lại đúng cách
         const consumerTag = await this.consume(queue, callback, options, mode);
-        
         this.logger.log(`Consumer restored for queue ${queue} with tag ${consumerTag}`);
       } catch (error) {
         this.logger.error(`Failed to restore consumer for queue ${queue}: ${error.message}`);
@@ -164,7 +163,6 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
       
       this.logger.log(`Connecting to RabbitMQ at ${hostname}:${port} with username ${username} and vhost ${vhost || '/'}`);
       
-      // Use a more straightforward connection approach with a connection string
       try {
         this._connection = await amqplib.connect(this.connectionString);
         this.reconnectAttempts = 0;
@@ -186,9 +184,6 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
       }
     } catch (error) {
       this.logger.error(`RabbitMQ connection error: ${error.message}`);
-      if (error.stack) {
-        this.logger.error(`Stack trace: ${error.stack}`);
-      }
       await this.handleReconnect();
       throw error;
     }
@@ -210,7 +205,6 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
 
   private async handleReconnect() {
     if (this.isReconnecting) {
-      this.logger.log('Reconnection already in progress, skipping');
       return;
     }
     
@@ -230,7 +224,6 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
         await this.connect();
         await this.createChannel();
         await this.setupInitialTopology();
-        // Khôi phục các consumer đã đăng ký
         await this.restoreConsumers();
         this.isReconnecting = false;
       } catch (error) {
@@ -252,15 +245,13 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
       }
       
       this._channel = await this._connection.createChannel();
-      // Increment channel ID to track channel changes
       this._channelId++;
       
       // Get prefetch count from queue configuration or use default of 1
-      const defaultPrefetchCount = 1;
-      let prefetchCount = defaultPrefetchCount;
+      let prefetchCount = 1;
       
       // If we have queue configurations, find the highest prefetch count
-      if (this.queues && this.queues.length > 0) {
+      if (this.queues.length > 0) {
         for (const queue of this.queues) {
           if (queue.prefetchCount && queue.prefetchCount > prefetchCount) {
             prefetchCount = queue.prefetchCount;
@@ -268,9 +259,7 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
         }
       }
       
-      this.logger.debug(`Setting prefetch count to ${prefetchCount}`);
-      this._channel.prefetch(prefetchCount);
-      
+      await this._channel.prefetch(prefetchCount);
       this.bindChannelListeners();
       this.logger.log('Successfully created RabbitMQ channel');
     } catch (error) {
@@ -285,7 +274,6 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
       if (error.message.includes('PRECONDITION_FAILED') || 
           error.message.includes('unknown delivery tag')) {
         this._channel = null;
-        this.logger.warn('Channel marked as invalid due to delivery tag error');
       }
     });
 
@@ -294,13 +282,8 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
       this._channel = null;
     });
 
-    // Add more logic if need
     this._channel.on('return', (msg) => {
       this.logger.warn(`Message was returned: ${msg.fields.replyText}`);
-    });
-
-    this._channel.on('drain', () => {
-      this.logger.debug('Channel drain event received');
     });
   }
 
@@ -339,9 +322,7 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
         await this.createChannel();
       }
       
-      this.logger.debug(`Asserting queue: ${queue}`);
       await this._channel.assertQueue(queue, options);
-      this.logger.debug(`Queue asserted: ${queue}`);
     } catch (error) {
       this.logger.error(`Failed to assert queue ${queue}: ${error.message}`);
       throw error;
@@ -354,9 +335,7 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
         await this.createChannel();
       }
       
-      this.logger.debug(`Asserting exchange: ${exchange} (${type})`);
       await this._channel.assertExchange(exchange, type, options);
-      this.logger.debug(`Exchange asserted: ${exchange}`);
     } catch (error) {
       this.logger.error(`Failed to assert exchange ${exchange}: ${error.message}`);
       throw error;
@@ -369,9 +348,7 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
         await this.createChannel();
       }
       
-      this.logger.debug(`Binding queue ${queue} to exchange ${exchange} with routing key ${routingKey}`);
       await this._channel.bindQueue(queue, exchange, routingKey, options);
-      this.logger.debug(`Queue ${queue} bound to exchange ${exchange}`);
     } catch (error) {
       this.logger.error(`Failed to bind queue ${queue} to exchange ${exchange}: ${error.message}`);
       throw error;
@@ -380,11 +357,6 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
 
   /**
    * Thiết lập một consumer nhận tin nhắn từ queue với chế độ xác nhận tùy chỉnh
-   * @param queue Tên queue
-   * @param callback Hàm callback xử lý tin nhắn
-   * @param options Tùy chọn consume
-   * @param ackMode Chế độ xác nhận (mặc định: BEST_EFFORT)
-   * @returns Promise<string> consumerTag
    */
   async consume(
     queue: string,
@@ -393,26 +365,21 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
     ackMode: AckMode = this.defaultAckMode,
   ): Promise<string> {
     try {
-      // Đảm bảo kênh đã sẵn sàng
       if (!await this.ensureChannel()) {
         throw new Error('Cannot ensure valid channel for consuming');
       }
       
       // Set prefetch count for this specific queue if configured
       const queueConfig = this.queues.find(q => q.name === queue);
-      if (queueConfig && queueConfig.prefetchCount !== undefined) {
-        this.logger.debug(`Setting prefetch count for queue ${queue} to ${queueConfig.prefetchCount}`);
+      if (queueConfig?.prefetchCount !== undefined) {
         await this._channel.prefetch(queueConfig.prefetchCount);
       }
-      
-      this.logger.debug(`Starting consumer on queue: ${queue} with ackMode: ${ackMode}`);
       
       // Lưu trữ callback và options để khôi phục sau này nếu cần
       this.consumers.set(queue, callback);
       if (options) {
         this.consumerOptions.set(queue, options);
       }
-      // Lưu trữ chế độ xác nhận
       this.consumerAckModes.set(queue, ackMode);
       
       // Capture current channel ID for this consumer
@@ -425,50 +392,41 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
           return;
         }
         
+        const extMsg = msg as ExtendedConsumeMessage;
+        
         if (ackMode === AckMode.PRE_PROCESS) {
-          // Xác nhận tin nhắn trước khi xử lý để tránh lỗi channel closed
           try {
             if (this.isChannelValid() && this._channelId === currentChannelId) {
-              this.logger.debug(`PRE_PROCESS: Acknowledging message ${msg.fields.deliveryTag} before processing`);
-              this._channel.ack(msg); // Sử dụng _channel trực tiếp để tránh vòng lặp
+              this._channel.ack(msg);
               
-              // Đánh dấu đã xác nhận trên tin nhắn để tránh xác nhận lại
-              (msg as any).__preAcknowledged = true;
-              (msg as any).__channelId = currentChannelId;
+              extMsg.__preAcknowledged = true;
+              extMsg.__channelId = currentChannelId;
               
-              // Bây giờ gọi callback để xử lý
               callback(msg);
             } else {
-              this.logger.warn(`PRE_PROCESS: Cannot acknowledge message ${msg.fields.deliveryTag} - channel not valid or has changed`);
-              // Mark message as pre-acknowledged to avoid further ack attempts
-              (msg as any).__preAcknowledged = true;
-              (msg as any).__channelId = currentChannelId;
-              // Vẫn chuyển tiếp tin nhắn để xử lý
+              extMsg.__preAcknowledged = true;
+              extMsg.__channelId = currentChannelId;
               callback(msg);
             }
           } catch (error) {
             this.logger.error(`Error in PRE_PROCESS acknowledge for queue ${queue}: ${error.message}`);
-            // Mark message as pre-acknowledged to avoid further ack attempts
-            (msg as any).__preAcknowledged = true;
-            (msg as any).__channelId = currentChannelId;
-            // Thử tạo lại kênh trong nền
+            extMsg.__preAcknowledged = true;
+            extMsg.__channelId = currentChannelId;
+            
             this.createChannel().catch(err => {
               this.logger.error(`Failed to recreate channel in PRE_PROCESS: ${err.message}`);
             });
-            // Vẫn chuyển tiếp tin nhắn để xử lý
+            
             callback(msg);
           }
         } else {
-          // Chế độ POST_PROCESS hoặc BEST_EFFORT: Chuyển tin nhắn cho callback xử lý
-          // Store channel ID with the message
-          (msg as any).__channelId = currentChannelId;
+          extMsg.__channelId = currentChannelId;
           callback(msg);
         }
       };
       
       const { consumerTag } = await this._channel.consume(queue, wrappedCallback, options);
       this.consumerTags.set(queue, consumerTag);
-      this.logger.debug(`Consumer started on queue ${queue} with tag ${consumerTag}`);
       return consumerTag;
     } catch (error) {
       this.logger.error(`Failed to start consumer on queue ${queue}: ${error.message}`);
@@ -478,7 +436,6 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
 
   /**
    * Hủy consume từ một queue cụ thể
-   * @param queue Tên queue hoặc consumer tag
    */
   async cancelConsumer(queue: string): Promise<void> {
     try {
@@ -510,16 +467,14 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
     options?: amqplib.Options.Publish,
   ): Promise<boolean> {
     try {
-      // Đảm bảo kênh đã sẵn sàng
       if (!await this.ensureChannel()) {
         throw new Error('Cannot ensure valid channel for publishing');
       }
       
-      const result = this._channel.publish(exchange, routingKey, content, {
+      return this._channel.publish(exchange, routingKey, content, {
         persistent: true,
         ...options,
       });
-      return result;
     } catch (error) {
       this.logger.error(`Failed to publish message to exchange ${exchange}: ${error.message}`);
       throw error;
@@ -532,195 +487,91 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
     options?: amqplib.Options.Publish,
   ): Promise<boolean> {
     try {
-      // Đảm bảo kênh đã sẵn sàng
       if (!await this.ensureChannel()) {
         throw new Error('Cannot ensure valid channel for sending to queue');
       }
       
-      const result = this._channel.sendToQueue(queue, content, {
+      return this._channel.sendToQueue(queue, content, {
         persistent: true,
         ...options,
       });
-      return result;
     } catch (error) {
       this.logger.error(`Failed to send message to queue ${queue}: ${error.message}`);
       throw error;
     }
   }
 
-  ack(msg: amqplib.ConsumeMessage, allUpTo = false): void {
+  /**
+   * Helper method to handle message acknowledgements with error handling
+   */
+  private handleMessageAck(
+    msg: amqplib.ConsumeMessage, 
+    isAck: boolean, 
+    allUpTo = false, 
+    requeue = true
+  ): void {
     if (!msg) {
-      this.logger.warn('Cannot acknowledge null message');
       return;
     }
     
+    const extMsg = msg as ExtendedConsumeMessage;
+    const actionName = isAck ? 'acknowledge' : 'negative-acknowledge';
+    
     // Check if message was already acknowledged or if channel has changed
-    if ((msg as any).__preAcknowledged) {
-      this.logger.debug(`Message ${msg.fields.deliveryTag} was already pre-acknowledged`);
+    if (extMsg.__preAcknowledged) {
       return;
     }
     
     // Check if message was received on a different channel
-    if ((msg as any).__channelId !== undefined && (msg as any).__channelId !== this._channelId) {
-      this.logger.warn(`Cannot acknowledge message ${msg.fields.deliveryTag} - channel has changed since message was received`);
+    if (extMsg.__channelId !== undefined && extMsg.__channelId !== this._channelId) {
+      this.logger.warn(`Cannot ${actionName} message ${msg.fields.deliveryTag} - channel has changed`);
       return;
     }
     
     try {
       if (!this.isChannelValid()) {
-        this.logger.warn(`Cannot acknowledge message (tag: ${msg.fields.deliveryTag}) - channel not available`);
-        
-        // Try to recreate the channel in the background without blocking
-        setTimeout(() => {
-          this.createChannel().catch(err => {
-            this.logger.error(`Failed to recreate channel during ack: ${err.message}`);
-            this.handleReconnect().catch(reconnectError => {
-              this.logger.error(`Reconnect failed during ack: ${reconnectError.message}`);
-            });
-          });
-        }, 0);
-        
-        // Don't throw an error, just log it and return
-        this.logger.error(`Channel not available for acknowledgement of message ${msg.fields.deliveryTag}`);
+        // Schedule channel recreation in background
+        setTimeout(() => this.createChannel(), 0);
         return;
       }
       
-      this.logger.debug(`Acknowledging message with tag: ${msg.fields.deliveryTag}, allUpTo: ${allUpTo}`);
-      
       try {
-        this._channel.ack(msg, allUpTo);
-        this.logger.debug(`Successfully acknowledged message ${msg.fields.deliveryTag}`);
+        if (isAck) {
+          this._channel.ack(msg, allUpTo);
+        } else {
+          this._channel.nack(msg, allUpTo, requeue);
+        }
       } catch (innerError) {
-        // Handle specific channel errors
-        this.logger.error(`Direct channel error in ack: ${innerError.message}`);
-        
-        // Don't throw the error, just handle the reconnection
         if (innerError.message.includes('channel closed') || 
             innerError.message.includes('connection closed') ||
             innerError.message.includes('unknown delivery tag')) {
-          this._channel = null; // Mark channel as invalid
-          
-          // Schedule reconnection in the background
-          setTimeout(() => {
-            this.handleReconnect().catch(reconnectError => {
-              this.logger.error(`Failed to reconnect after ack error: ${reconnectError.message}`);
-            });
-          }, 100);
+          this._channel = null;
+          setTimeout(() => this.handleReconnect(), 100);
         }
       }
     } catch (error) {
-      this.logger.error(`Failed to acknowledge message ${msg.fields.deliveryTag}: ${error.message}`);
-      
-      // If this is a connection-related error, try to reconnect
       if (error.message.includes('channel closed') || 
           error.message.includes('connection closed') ||
           error.message.includes('not available') ||
           error.message.includes('unknown delivery tag') ||
           !this._channel) {
         
-        this.logger.warn('Connection issue detected during ack, attempting to reconnect...');
-        this._channel = null; // Mark channel as invalid
-        
-        // Schedule reconnection in the background
-        setTimeout(() => {
-          this.handleReconnect().catch(reconnectError => {
-            this.logger.error(`Failed to reconnect after ack error: ${reconnectError.message}`);
-          });
-        }, 100);
+        this._channel = null;
+        setTimeout(() => this.handleReconnect(), 100);
       }
-      
-      // Don't throw the error
     }
   }
 
+  ack(msg: amqplib.ConsumeMessage, allUpTo = false): void {
+    this.handleMessageAck(msg, true, allUpTo);
+  }
+
   nack(msg: amqplib.ConsumeMessage, allUpTo = false, requeue = true): void {
-    if (!msg) {
-      this.logger.warn('Cannot negative-acknowledge null message');
-      return;
-    }
-    
-    // Check if message was already acknowledged or if channel has changed
-    if ((msg as any).__preAcknowledged) {
-      this.logger.debug(`Message ${msg.fields.deliveryTag} was already pre-acknowledged, cannot nack`);
-      return;
-    }
-    
-    // Check if message was received on a different channel
-    if ((msg as any).__channelId !== undefined && (msg as any).__channelId !== this._channelId) {
-      this.logger.warn(`Cannot negative-acknowledge message ${msg.fields.deliveryTag} - channel has changed since message was received`);
-      return;
-    }
-    
-    try {
-      if (!this.isChannelValid()) {
-        this.logger.warn(`Cannot negative-acknowledge message (tag: ${msg.fields.deliveryTag}) - channel not available`);
-        
-        // Try to recreate the channel in the background without blocking
-        setTimeout(() => {
-          this.createChannel().catch(err => {
-            this.logger.error(`Failed to recreate channel during nack: ${err.message}`);
-            this.handleReconnect().catch(reconnectError => {
-              this.logger.error(`Reconnect failed during nack: ${reconnectError.message}`);
-            });
-          });
-        }, 0);
-        
-        // Don't throw an error, just log it and return
-        this.logger.error(`Channel not available for negative acknowledgement of message ${msg.fields.deliveryTag}`);
-        return;
-      }
-      
-      this.logger.debug(`Negative-acknowledging message with tag: ${msg.fields.deliveryTag}, allUpTo: ${allUpTo}, requeue: ${requeue}`);
-      
-      try {
-        this._channel.nack(msg, allUpTo, requeue);
-        this.logger.debug(`Successfully negative-acknowledged message ${msg.fields.deliveryTag}`);
-      } catch (innerError) {
-        // Handle specific channel errors
-        this.logger.error(`Direct channel error in nack: ${innerError.message}`);
-        
-        // Don't throw the error, just handle the reconnection
-        if (innerError.message.includes('channel closed') || 
-            innerError.message.includes('connection closed') ||
-            innerError.message.includes('unknown delivery tag')) {
-          this._channel = null; // Mark channel as invalid
-          
-          // Schedule reconnection in the background
-          setTimeout(() => {
-            this.handleReconnect().catch(reconnectError => {
-              this.logger.error(`Failed to reconnect after nack error: ${reconnectError.message}`);
-            });
-          }, 100);
-        }
-      }
-    } catch (error) {
-      this.logger.error(`Failed to negative-acknowledge message ${msg.fields.deliveryTag}: ${error.message}`);
-      
-      // If this is a connection-related error, try to reconnect
-      if (error.message.includes('channel closed') || 
-          error.message.includes('connection closed') ||
-          error.message.includes('not available') ||
-          error.message.includes('unknown delivery tag') ||
-          !this._channel) {
-        
-        this.logger.warn('Connection issue detected during nack, attempting to reconnect...');
-        this._channel = null; // Mark channel as invalid
-        
-        // Schedule reconnection in the background
-        setTimeout(() => {
-          this.handleReconnect().catch(reconnectError => {
-            this.logger.error(`Failed to reconnect after nack error: ${reconnectError.message}`);
-          });
-        }, 100);
-      }
-      
-      // Don't throw the error
-    }
+    this.handleMessageAck(msg, false, allUpTo, requeue);
   }
 
   /**
    * Thiết lập chế độ xác nhận mặc định cho tất cả các lệnh consume mới
-   * @param mode Chế độ xác nhận mặc định
    */
   setDefaultAckMode(mode: AckMode): void {
     this.defaultAckMode = mode;
@@ -731,13 +582,11 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
     try {
       if (this._channel) {
         await this._channel.close();
-        this.logger.log('RabbitMQ channel closed');
         this._channel = null;
       }
       
       if (this._connection) {
         await this._connection.close();
-        this.logger.log('RabbitMQ connection closed');
         this._connection = null;
       }
     } catch (error) {
