@@ -13,6 +13,7 @@ export interface RabbitMQConfig {
 export interface RabbitMQQueueConfig {
   name: string;
   options?: Options.AssertQueue;
+  prefetchCount?: number;
 }
 
 export interface RabbitMQExchangeConfig {

@@ -119,6 +119,13 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
       try {
         this.logger.log(`Restoring consumer for queue: ${queue} with ackMode: ${mode}`);
         
+        // Set prefetch count for this specific queue if configured
+        const queueConfig = this.queues.find(q => q.name === queue);
+        if (queueConfig && queueConfig.prefetchCount !== undefined) {
+          this.logger.debug(`Setting prefetch count for queue ${queue} to ${queueConfig.prefetchCount} during restore`);
+          await this._channel.prefetch(queueConfig.prefetchCount);
+        }
+        
         // Sử dụng phương thức consume() để đăng ký lại consumer
         // Điều này đảm bảo rằng các wrapper callbacks được tạo lại đúng cách
         const consumerTag = await this.consume(queue, callback, options, mode);
@@ -247,7 +254,23 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
       this._channel = await this._connection.createChannel();
       // Increment channel ID to track channel changes
       this._channelId++;
-      this._channel.prefetch(10); // Set prefetch count to 10 messages at a time
+      
+      // Get prefetch count from queue configuration or use default of 1
+      const defaultPrefetchCount = 1;
+      let prefetchCount = defaultPrefetchCount;
+      
+      // If we have queue configurations, find the highest prefetch count
+      if (this.queues && this.queues.length > 0) {
+        for (const queue of this.queues) {
+          if (queue.prefetchCount && queue.prefetchCount > prefetchCount) {
+            prefetchCount = queue.prefetchCount;
+          }
+        }
+      }
+      
+      this.logger.debug(`Setting prefetch count to ${prefetchCount}`);
+      this._channel.prefetch(prefetchCount);
+      
       this.bindChannelListeners();
       this.logger.log('Successfully created RabbitMQ channel');
     } catch (error) {
@@ -271,7 +294,7 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
       this._channel = null;
     });
 
-    // Thêm xử lý các sự kiện khác nếu cần
+    // Add more logic if need
     this._channel.on('return', (msg) => {
       this.logger.warn(`Message was returned: ${msg.fields.replyText}`);
     });
@@ -373,6 +396,13 @@ export class RabbitMQService implements IRabbitMQService, OnModuleInit, OnModule
       // Đảm bảo kênh đã sẵn sàng
       if (!await this.ensureChannel()) {
         throw new Error('Cannot ensure valid channel for consuming');
+      }
+      
+      // Set prefetch count for this specific queue if configured
+      const queueConfig = this.queues.find(q => q.name === queue);
+      if (queueConfig && queueConfig.prefetchCount !== undefined) {
+        this.logger.debug(`Setting prefetch count for queue ${queue} to ${queueConfig.prefetchCount}`);
+        await this._channel.prefetch(queueConfig.prefetchCount);
       }
       
       this.logger.debug(`Starting consumer on queue: ${queue} with ackMode: ${ackMode}`);

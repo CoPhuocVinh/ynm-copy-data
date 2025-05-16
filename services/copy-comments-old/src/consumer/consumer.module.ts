@@ -39,6 +39,7 @@ import { RabbitMQModule } from '@libs/rabbitmq-adapter';
                 durable: configService.get<boolean>('queue.comments.durable'),
                 autoDelete: configService.get<boolean>('queue.comments.autoDelete'),
               },
+              prefetchCount: configService.get<number>('queue.comments.prefetchCount') || 1,
             },
           ],
         };
