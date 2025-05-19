@@ -2,13 +2,7 @@ import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
 import { RabbitMQService } from '@libs/rabbitmq-adapter';
-import { 
-  CommentCopyPayload, 
-  CommentCopyRequestDto, 
-  MESSAGE_SEND_DELAY,
-  MESSAGE_SEND_TIMEOUT,
-  MAX_SEND_RETRIES
-} from '../shared';
+import { CommentCopyPayload, CommentCopyRequestDto, MESSAGE_SEND_DELAY, MESSAGE_SEND_TIMEOUT, MAX_SEND_RETRIES } from '../shared';
 
 @Injectable()
 export class ProducerService implements OnModuleInit {
@@ -22,20 +16,20 @@ export class ProducerService implements OnModuleInit {
   ) {
     this.queueName = this.configService.get<string>('queue.comments.name');
   }
-  
+
   // Auto initialize with OnModuleInit
   async onModuleInit() {
     this.logger.log('Auto initializing producer service via OnModuleInit');
     await this.initialize();
   }
-  
+
   // Manual initialization
   async initialize() {
     if (this.isInitialized) {
       this.logger.log('Producer service already initialized, skipping initialization');
       return this;
     }
-    
+
     this.logger.log('Initializing producer service');
     // Verify RabbitMQ connection works by checking if the connection exists
     // Chỉ ghi log, không thực sự kiểm tra kết nối vì RabbitMQService tự động xử lý kết nối
@@ -43,7 +37,7 @@ export class ProducerService implements OnModuleInit {
     this.isInitialized = true;
     return this;
   }
-  
+
   // Shutdown method for cleanup
   async shutdown() {
     this.logger.log('Producer service shutdown complete');
@@ -60,7 +54,7 @@ export class ProducerService implements OnModuleInit {
     if (!this.isInitialized) {
       await this.initialize();
     }
-    
+
     try {
       const id = uuidv4();
       const message: CommentCopyPayload = {
@@ -70,22 +64,18 @@ export class ProducerService implements OnModuleInit {
       };
 
       this.logger.log(`Sending comment copy request: ${JSON.stringify(message)}`);
-      
+
       // Add timeout to prevent hanging if RabbitMQ doesn't respond
-      const sendPromise = this.rabbitMQService.sendToQueue(
-        this.queueName,
-        Buffer.from(JSON.stringify(message)),
-        {
-          contentType: 'application/json',
-          messageId: id,
-        },
-      );
-      
+      const sendPromise = this.rabbitMQService.sendToQueue(this.queueName, Buffer.from(JSON.stringify(message)), {
+        contentType: 'application/json',
+        messageId: id,
+      });
+
       // Create promise with timeout
       const timeoutPromise = new Promise<boolean>((_, reject) => {
         setTimeout(() => reject(new Error(`Send operation timed out after ${MESSAGE_SEND_TIMEOUT}ms`)), MESSAGE_SEND_TIMEOUT);
       });
-      
+
       // Wait for whichever promise completes first
       const success = await Promise.race([sendPromise, timeoutPromise]);
 
@@ -108,7 +98,7 @@ export class ProducerService implements OnModuleInit {
    */
   async sendSampleBatchRequests(count: number = 5): Promise<string[]> {
     const ids: string[] = [];
-    
+
     for (let i = 0; i < count; i++) {
       const payload: CommentCopyRequestDto = {
         commentId: `comment_${Math.floor(Math.random() * 1000)}`,
@@ -122,35 +112,35 @@ export class ProducerService implements OnModuleInit {
           commentType: ['text', 'image', 'video', 'audio'][Math.floor(Math.random() * 4)],
         },
       };
-      
+
       // Add retry mechanism for failed sends
       let retries = 0;
       let id: string | null = null;
-      
+
       while (retries < MAX_SEND_RETRIES && id === null) {
         try {
           id = await this.sendCommentCopyRequest(payload);
         } catch (error) {
           retries++;
           this.logger.warn(`Failed to send message (attempt ${retries}/${MAX_SEND_RETRIES}): ${error.message}`);
-          
+
           if (retries < MAX_SEND_RETRIES) {
             // Wait before retrying
-            await new Promise(resolve => setTimeout(resolve, MESSAGE_SEND_DELAY * retries));
+            await new Promise((resolve) => setTimeout(resolve, MESSAGE_SEND_DELAY * retries));
           }
         }
       }
-      
+
       if (id) {
         ids.push(id);
       } else {
         this.logger.error(`Failed to send message after ${MAX_SEND_RETRIES} attempts`);
       }
-      
+
       // Add a small delay between messages
-      await new Promise(resolve => setTimeout(resolve, MESSAGE_SEND_DELAY));
+      await new Promise((resolve) => setTimeout(resolve, MESSAGE_SEND_DELAY));
     }
-    
+
     return ids;
   }
-} 
+}

@@ -1,9 +1,9 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { AckMode, RabbitMQService } from '@libs/rabbitmq-adapter';
-import { 
-  CommentCopyPayload, 
-  ProcessedMessage, 
+import {
+  CommentCopyPayload,
+  ProcessedMessage,
   ProcessingStats,
   MAX_PROCESSED_MESSAGES_SIZE,
   MESSAGE_EXPIRY_TIME,
@@ -11,7 +11,7 @@ import {
   STATS_REPORTING_INTERVAL,
   SIMULATED_FAILURE_RATE,
   MIN_PROCESSING_TIME,
-  MAX_PROCESSING_TIME
+  MAX_PROCESSING_TIME,
 } from '../shared';
 
 @Injectable()
@@ -48,7 +48,7 @@ export class ConsumerService implements OnModuleInit {
       this.logger.log('Consumer service already initialized, skipping initialization');
       return this;
     }
-    
+
     this.logger.log('Manually initializing consumer service');
     await this.startConsumer();
     this.startStatsReporting();
@@ -67,12 +67,7 @@ export class ConsumerService implements OnModuleInit {
 
   private async startConsumer() {
     try {
-      await this.rabbitMQService.consume(
-        this.queueName,
-        this.processMessage.bind(this),
-        { noAck: false },
-        AckMode.POST_PROCESS
-      );
+      await this.rabbitMQService.consume(this.queueName, this.processMessage.bind(this), { noAck: false }, AckMode.POST_PROCESS);
       this.logger.log(`Consumer started for queue ${this.queueName} with POST_PROCESS ack mode`);
     } catch (error) {
       this.logger.error(`Failed to start consumer: ${error.message}`);
@@ -85,9 +80,9 @@ export class ConsumerService implements OnModuleInit {
     this.statsReportingInterval = setInterval(() => {
       this.logger.log(
         `Processing stats - Processed: ${this.processingStats.processed}, ` +
-        `Failed: ${this.processingStats.failed}, ` +
-        `Last processed: ${this.processingStats.lastProcessedTime}, ` +
-        `Cache size: ${this.processedMessages.size}`,
+          `Failed: ${this.processingStats.failed}, ` +
+          `Last processed: ${this.processingStats.lastProcessedTime}, ` +
+          `Cache size: ${this.processedMessages.size}`,
       );
     }, STATS_REPORTING_INTERVAL);
   }
@@ -110,26 +105,25 @@ export class ConsumerService implements OnModuleInit {
         expiredCount++;
       }
     }
-    
+
     if (expiredCount > 0) {
       this.logger.log(`Pruned ${expiredCount} expired message IDs from cache`);
     }
-    
+
     if (this.processedMessages.size > this.maxProcessedMessagesSize) {
       //const excessItems = this.processedMessages.size - (this.maxProcessedMessagesSize / 2);
-      const excessItems = this.processedMessages.size - (this.maxProcessedMessagesSize * PRUNE_THRESHOLD_RATIO);
+      const excessItems = this.processedMessages.size - this.maxProcessedMessagesSize * PRUNE_THRESHOLD_RATIO;
       this.pruneOldestMessages(excessItems);
     }
   }
 
   private pruneOldestMessages(count: number) {
     if (count <= 0) return;
-    
+
     this.logger.log(`Pruning ${count} oldest message IDs from cache due to size limit`);
-    
-    const sortedEntries = [...this.processedMessages.entries()]
-      .sort((a, b) => a[1].timestamp - b[1].timestamp);
-    
+
+    const sortedEntries = [...this.processedMessages.entries()].sort((a, b) => a[1].timestamp - b[1].timestamp);
+
     for (let i = 0; i < count && i < sortedEntries.length; i++) {
       this.processedMessages.delete(sortedEntries[i][0]);
     }
@@ -144,35 +138,35 @@ export class ConsumerService implements OnModuleInit {
     try {
       const content = message.content.toString();
       const payload = JSON.parse(content) as CommentCopyPayload;
-      
+
       if (this.processedMessages.has(payload.id)) {
         this.logger.log(`Message ${payload.id} already processed, acknowledging without reprocessing`);
         this.safeAcknowledge(message, payload.id);
         return;
       }
-      
+
       this.logger.log(`Processing comment copy request: ${payload.id}`);
 
       try {
         await this.copyComment(payload);
-        
+
         this.processingStats.processed++;
         this.processingStats.lastProcessedTime = new Date();
         this.processedMessages.set(payload.id, { id: payload.id, timestamp: Date.now() });
-        
+
         this.safeAcknowledge(message, payload.id);
-        
+
         this.logger.log(`Comment copy completed for request: ${payload.id}`);
       } catch (processingError) {
         this.processingStats.failed++;
         this.logger.error(`Error processing message: ${processingError.message}`);
-        
+
         this.safeNegativeAcknowledge(message, payload.id);
       }
     } catch (parseError) {
       this.processingStats.failed++;
       this.logger.error(`Error parsing message: ${parseError.message}`);
-      
+
       try {
         // Set requeue to true to ensure messages are requeued when there's a parsing error
         this.rabbitMQService.nack(message, false, true);
@@ -204,31 +198,31 @@ export class ConsumerService implements OnModuleInit {
 
   private async copyComment(payload: CommentCopyPayload): Promise<void> {
     this.logger.log(`Copying comment ${payload.commentId} from ${payload.source} to ${payload.destination}`);
-    
+
     if (payload.postId) {
       this.logger.log(`Associated with post: ${payload.postId}`);
     }
-    
+
     if (payload.shardId !== undefined) {
       this.logger.log(`Using shard: ${payload.shardId}`);
     }
-    
+
     // Simulate processing time - random between MIN_PROCESSING_TIME and MAX_PROCESSING_TIME
     const processingTime = Math.floor(Math.random() * (MAX_PROCESSING_TIME - MIN_PROCESSING_TIME)) + MIN_PROCESSING_TIME;
-    await new Promise(resolve => setTimeout(resolve, processingTime));
-    
+    await new Promise((resolve) => setTimeout(resolve, processingTime));
+
     // Simulate occasional failure with SIMULATED_FAILURE_RATE% chance
     if (Math.random() * 100 < SIMULATED_FAILURE_RATE) {
       throw new Error(`Failed to copy comment ${payload.commentId} - simulated random failure`);
     }
-    
+
     this.logger.log(`Comment ${payload.commentId} copied successfully in ${processingTime}ms`);
   }
 
   getProcessingStats(): ProcessingStats {
-    return { 
+    return {
       ...this.processingStats,
-      cachedMessageCount: this.processedMessages.size
+      cachedMessageCount: this.processedMessages.size,
     };
   }
-} 
+}

@@ -50,4 +50,4 @@ import { RabbitMQModule } from '@libs/rabbitmq-adapter';
   providers: [ConsumerService],
   exports: [ConsumerService],
 })
-export class ConsumerModule {} 
+export class ConsumerModule {}

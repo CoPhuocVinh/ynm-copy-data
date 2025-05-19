@@ -36,4 +36,4 @@ export const MIN_PROCESSING_TIME = 500;
 /**
  * Maximum simulated processing time (ms)
  */
-export const MAX_PROCESSING_TIME = 2000; 
+export const MAX_PROCESSING_TIME = 2000;

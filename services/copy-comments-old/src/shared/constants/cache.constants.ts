@@ -16,4 +16,4 @@ export const CACHE_CLEANUP_INTERVAL = 60000;
 /**
  * Interval between statistics reporting (10 seconds in ms)
  */
-export const STATS_REPORTING_INTERVAL = 10000; 
+export const STATS_REPORTING_INTERVAL = 10000;

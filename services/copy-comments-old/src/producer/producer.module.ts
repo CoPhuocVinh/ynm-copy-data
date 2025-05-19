@@ -49,4 +49,4 @@ import { RabbitMQModule } from '@libs/rabbitmq-adapter';
   providers: [ProducerService],
   exports: [ProducerService],
 })
-export class ProducerModule {} 
+export class ProducerModule {}

@@ -4,7 +4,8 @@
   "description": "Data Copy Service using RabbitMQ",
   "private": true,
   "engines": {
-    "node": ">=18.0.0"
+    "node": ">=20.0.0",
+    "yarn": ">=1.22.22"
   },
   "workspaces": [
     "libs/*",
@@ -19,17 +20,10 @@
     "dev": "lerna run --parallel dev",
     "test": "lerna run --stream test --no-prefix",
     "coverage": "lerna run --stream coverage --no-prefix",
-    
-    "comments-old:consumer": "yarn dev:comments-old:consumer",
-    "comments-old:producer": "yarn dev:comments-old:producer",
-    "docs-old:consumer": "yarn dev:docs-old:consumer",
-    "docs-old:producer": "yarn dev:docs-old:producer",
-    
-    "dev:comments-old:consumer": "cd services/copy-comments-old && yarn dev:consumer",
-    "dev:comments-old:producer": "cd services/copy-comments-old && yarn dev:producer",
-    "dev:docs-old:consumer": "cd services/copy-docs-old && yarn dev:consumer",
-    "dev:docs-old:producer": "cd services/copy-docs-old && yarn dev:producer",
-    
+    "comments-old:consumer": "lerna run --scope copy-comments-old dev:consumer",
+    "comments-old:producer": "lerna run --scope copy-comments-old dev:producer",
+    "docs-old:consumer": "lerna run --scope copy-docs-old dev:consumer",
+    "docs-old:producer": "lerna run --scope copy-docs-old dev:producer",
     "prepare": "husky install"
   },
   "keywords": [
@@ -60,10 +54,16 @@
     "@types/express": "^5.0.1",
     "@types/inquirer": "^8.1.3",
     "@types/node": "^22.15.18",
-    "lerna": "^7.3.0",
-    "nodemon": "^3.1.10",
+    "@typescript-eslint/eslint-plugin": "^8.32.1",
+    "@typescript-eslint/parser": "^8.32.1",
+    "eslint": "^9.27.0",
+    "eslint-config-prettier": "^10.1.5",
+    "eslint-plugin-prettier": "^5.4.0",
     "husky": "^8.0.3",
+    "lerna": "^7.3.0",
     "lint-staged": "^15.2.0",
+    "nodemon": "^3.1.10",
+    "prettier": "^3.5.3",
     "rimraf": "^6.0.1",
     "ts-loader": "^9.5.2",
     "ts-node": "^10.9.2",

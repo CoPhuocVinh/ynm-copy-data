@@ -38,4 +38,4 @@ export interface ProcessingStats {
    * Number of messages in the cache
    */
   cachedMessageCount?: number;
-} 
+}

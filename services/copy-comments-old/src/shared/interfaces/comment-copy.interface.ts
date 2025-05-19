@@ -47,4 +47,4 @@ export interface CommentCopyPayload {
  * Interface describing the input data for a comment copy request
  * Omits fields that will be automatically generated (id, timestamp)
  */
-export type CommentCopyRequestDto = Omit<CommentCopyPayload, 'id' | 'timestamp'>; 
+export type CommentCopyRequestDto = Omit<CommentCopyPayload, 'id' | 'timestamp'>;
