@@ -15,7 +15,7 @@ export class RabbitMQConsumerManager implements IRabbitMQConsumerManager {
   private consumers = new Map<string, (msg: ConsumeMessage | null) => void>();
   private consumerOptions = new Map<string, Options.Consume>();
   private consumerAckModes = new Map<string, AckMode>();
-  private defaultAckMode: AckMode = AckMode.BEST_EFFORT;
+  private defaultAckMode: AckMode = AckMode.POST_PROCESS;
   private queueConfigs: RabbitMQQueueConfig[] = [];
   
   constructor(
@@ -217,9 +217,11 @@ export class RabbitMQConsumerManager implements IRabbitMQConsumerManager {
         }
       } catch (innerError) {
         this.logger.error(`Error in ${actionName}: ${innerError.message}`);
+        throw innerError; // Rethrow to handle in consumer with POST_PROCESS mode
       }
     } catch (error) {
       this.logger.error(`Failed to ${actionName} message: ${error.message}`);
+      throw error; // Rethrow to handle in consumer with POST_PROCESS mode
     }
   }
 

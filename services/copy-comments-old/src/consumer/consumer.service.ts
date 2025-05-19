@@ -71,9 +71,9 @@ export class ConsumerService implements OnModuleInit {
         this.queueName,
         this.processMessage.bind(this),
         { noAck: false },
-        AckMode.PRE_PROCESS
+        AckMode.POST_PROCESS
       );
-      this.logger.log(`Consumer started for queue ${this.queueName} with PRE_PROCESS ack mode`);
+      this.logger.log(`Consumer started for queue ${this.queueName} with POST_PROCESS ack mode`);
     } catch (error) {
       this.logger.error(`Failed to start consumer: ${error.message}`);
       throw error;
@@ -144,9 +144,7 @@ export class ConsumerService implements OnModuleInit {
       
       if (this.processedMessages.has(payload.id)) {
         this.logger.log(`Message ${payload.id} already processed, acknowledging without reprocessing`);
-        if (!message.__preAcknowledged) {
-          this.safeAcknowledge(message, payload.id);
-        }
+        this.safeAcknowledge(message, payload.id);
         return;
       }
       
@@ -159,31 +157,23 @@ export class ConsumerService implements OnModuleInit {
         this.processingStats.lastProcessedTime = new Date();
         this.processedMessages.set(payload.id, { id: payload.id, timestamp: Date.now() });
         
-        if (!message.__preAcknowledged) {
-          this.safeAcknowledge(message, payload.id);
-        }
+        this.safeAcknowledge(message, payload.id);
         
         this.logger.log(`Comment copy completed for request: ${payload.id}`);
       } catch (processingError) {
         this.processingStats.failed++;
         this.logger.error(`Error processing message: ${processingError.message}`);
         
-        if (!message.__preAcknowledged) {
-          this.safeNegativeAcknowledge(message, payload.id);
-        } else {
-          this.logger.warn(`Message ${payload.id} failed but was pre-acknowledged, cannot nack`);
-        }
+        this.safeNegativeAcknowledge(message, payload.id);
       }
     } catch (parseError) {
       this.processingStats.failed++;
       this.logger.error(`Error parsing message: ${parseError.message}`);
       
-      if (!message.__preAcknowledged) {
-        try {
-          this.rabbitMQService.nack(message, false, false);
-        } catch (nackError) {
-          this.logger.warn(`Failed to nack malformed message: ${nackError.message}`);
-        }
+      try {
+        this.rabbitMQService.nack(message, false, false);
+      } catch (nackError) {
+        this.logger.warn(`Failed to nack malformed message: ${nackError.message}`);
       }
     }
   }
