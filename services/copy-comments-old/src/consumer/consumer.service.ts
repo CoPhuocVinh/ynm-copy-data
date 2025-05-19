@@ -101,7 +101,9 @@ export class ConsumerService implements OnModuleInit {
   private pruneExpiredMessages() {
     const now = Date.now();
     let expiredCount = 0;
-    
+
+    const PRUNE_THRESHOLD_RATIO = 0.5;
+
     for (const [id, message] of this.processedMessages.entries()) {
       if (now - message.timestamp > this.messageExpiryTime) {
         this.processedMessages.delete(id);
@@ -114,7 +116,8 @@ export class ConsumerService implements OnModuleInit {
     }
     
     if (this.processedMessages.size > this.maxProcessedMessagesSize) {
-      const excessItems = this.processedMessages.size - (this.maxProcessedMessagesSize / 2);
+      //const excessItems = this.processedMessages.size - (this.maxProcessedMessagesSize / 2);
+      const excessItems = this.processedMessages.size - (this.maxProcessedMessagesSize * PRUNE_THRESHOLD_RATIO);
       this.pruneOldestMessages(excessItems);
     }
   }
@@ -171,7 +174,8 @@ export class ConsumerService implements OnModuleInit {
       this.logger.error(`Error parsing message: ${parseError.message}`);
       
       try {
-        this.rabbitMQService.nack(message, false, false);
+        // Set requeue to true to ensure messages are requeued when there's a parsing error
+        this.rabbitMQService.nack(message, false, true);
       } catch (nackError) {
         this.logger.warn(`Failed to nack malformed message: ${nackError.message}`);
       }
