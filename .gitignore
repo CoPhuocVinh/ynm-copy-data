@@ -51,3 +51,4 @@ Thumbs.db
 .tsbuildinfo
 
 # Service to ignore
+yarn.lock
