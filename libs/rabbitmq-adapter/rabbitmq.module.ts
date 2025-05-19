@@ -1,7 +1,7 @@
 import { DynamicModule, Global, Module, Provider } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { RabbitMQService } from './rabbitmq.service';
-import { RabbitMQModuleOptions } from './rabbitmq.interface';
+import { RabbitMQModuleOptions } from './interfaces';
 import { rabbitMQConfig } from './rabbitmq.config';
 
 @Global()
