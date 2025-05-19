@@ -2,7 +2,7 @@ import { Module } from '@nestjs/common';
 import { ConfigModule, ConfigService } from '@nestjs/config';
 import { ProducerService } from './producer.service';
 import * as path from 'path';
-import { RabbitMQModule } from '@libs/rabbitmq-adapter';
+import { RabbitMQModule } from '@libs/core/adapter/rabbitmq-adapter';
 
 @Module({
   imports: [

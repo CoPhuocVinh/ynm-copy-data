@@ -1,6 +1,6 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
-import { AckMode, RabbitMQService } from '@libs/rabbitmq-adapter';
+import { AckMode, RabbitMQService } from '@libs/core/adapter/rabbitmq-adapter';
 import {
   CommentCopyPayload,
   ProcessedMessage,

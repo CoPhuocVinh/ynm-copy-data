@@ -1,62 +1,100 @@
-# Libraries
+# Shared Libraries
 
-This directory contains shared libraries that can be used across multiple services in the YNM Copy Data project.
+This directory contains shared libraries and utilities used across the application.
 
-## Current Libraries
+## Directory Structure
 
-- `rabbitmq-adapter`: A NestJS module for integrating with RabbitMQ
+```
+libs/
+├── core/                    # Core functionality and shared components
+│   ├── adapter/            # External service adapters
+│   │   └── rabbitmq-adapter/  # RabbitMQ integration
+│   ├── entities/           # Core domain entities
+│   ├── dtos/              # Data Transfer Objects
+│   ├── repositories/      # Data access layer
+│   ├── constants/         # Application constants
+│   ├── enums/            # Enumeration types
+│   ├── interfaces/       # TypeScript interfaces
+│   ├── types/           # Custom type definitions
+│   └── utils/           # Utility functions
+```
 
-## Adding a New Library
+## Core Components
 
-To add a new shared library to the project, follow these steps:
+### Adapters
+- Located in `core/adapter/`
+- Contains adapters for external services and integrations
+- Each adapter should be self-contained and follow a consistent interface
 
-1. **Create a new library directory**:
-   ```bash
-   mkdir -p libs/your-library-name
-   ```
+### Entities
+- Located in `core/entities/`
+- Contains core domain entities
+- Represents the fundamental business objects of the application
 
-2. **Set up the library structure**:
-   ```
-   libs/your-library-name/
-   ├── index.ts            # Main export file
-   ├── README.md           # Documentation
-   └── src/                # Source code
-       ├── interfaces/     # Type definitions and interfaces
-       ├── services/       # Service implementations
-       └── modules/        # NestJS modules
-   ```
+### DTOs
+- Located in `core/dtos/`
+- Contains Data Transfer Objects
+- Used for transferring data between different layers
 
-3. **Export your library**:
-   Create an `index.ts` file in your library root that exports all public components:
-   ```typescript
-   // libs/your-library-name/index.ts
-   export * from './src/interfaces';
-   export * from './src/services';
-   export * from './src/modules';
-   ```
+### Repositories
+- Located in `core/repositories/`
+- Contains data access interfaces and implementations
+- Abstracts database operations
 
-4. **Update tsconfig paths**:
-   Make sure your library can be imported using the `@libs/your-library-name` path by updating the root `tsconfig.json`:
-   ```json
-   "paths": {
-     "@libs/your-library-name": ["libs/your-library-name"]
-   }
-   ```
+### Constants
+- Located in `core/constants/`
+- Contains application-wide constants
+- Centralizes configuration values
 
-5. **Document your library**:
-   Create a README.md file with usage instructions, API documentation, and examples.
+### Enums
+- Located in `core/enums/`
+- Contains enumeration types
+- Defines fixed sets of values
 
-6. **Use your library in services**:
-   Import your library in services using the path alias:
-   ```typescript
-   import { YourService } from '@libs/your-library-name';
-   ```
+### Interfaces
+- Located in `core/interfaces/`
+- Contains TypeScript interfaces
+- Defines contracts for classes and objects
 
-## Library Development Best Practices
+### Types
+- Located in `core/types/`
+- Contains custom type definitions
+- Improves type safety
 
-1. **Keep libraries focused**: Each library should have a single responsibility
-2. **Document thoroughly**: Provide clear documentation and examples
-3. **Use proper typing**: Make good use of TypeScript types and interfaces
-4. **Consider dependencies**: Minimize external dependencies when possible
-5. **Version compatibility**: Ensure your library works with the NestJS version used in the project
-6. **Testing**: Write unit tests for your library components 
+### Utils
+- Located in `core/utils/`
+- Contains utility functions
+- Provides reusable helper methods
+
+## Adding New Libraries
+
+When adding a new library:
+
+1. Determine the appropriate category in the core directory
+2. Create a new directory with a descriptive name
+3. Include necessary files:
+   - `index.ts` for exports
+   - `README.md` with documentation
+   - Unit tests
+   - Type definitions
+
+## Best Practices
+
+1. Keep libraries focused and single-purpose
+2. Maintain clear documentation
+3. Include unit tests
+4. Use TypeScript for type safety
+5. Follow consistent naming conventions
+6. Keep dependencies minimal
+7. Document any external dependencies
+
+## Usage
+
+Import shared libraries in your services:
+
+```typescript
+// Example import
+import { SomeComponent } from '@libs/core/entities';
+```
+
+For detailed documentation on specific components, see their respective README files. 

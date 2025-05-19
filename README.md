@@ -7,8 +7,18 @@ A microservice architecture for copying data using RabbitMQ with NestJS.
 ```
 ynm-copy-data/
 ├── libs/                   # Shared libraries
-│   ├── README.md           # Library documentation
-│   └── rabbitmq-adapter/   # RabbitMQ integration library
+│   ├── core/              # Core functionality
+│   │   ├── adapter/       # External service adapters
+│   │   │   └── rabbitmq-adapter/  # RabbitMQ integration
+│   │   ├── entities/      # Core domain entities
+│   │   ├── dtos/         # Data Transfer Objects
+│   │   ├── repositories/ # Data access layer
+│   │   ├── constants/    # Application constants
+│   │   ├── enums/       # Enumeration types
+│   │   ├── interfaces/  # TypeScript interfaces
+│   │   ├── types/      # Custom type definitions
+│   │   └── utils/      # Utility functions
+│   └── README.md        # Library documentation
 │
 ├── services/               # Microservices
 │   ├── README.md           # Services documentation
@@ -18,6 +28,8 @@ ynm-copy-data/
 ├── lerna.json              # Lerna configuration for monorepo management
 ├── nest-cli.json           # NestJS CLI configuration
 ├── tsconfig.json           # TypeScript configuration
+├── .eslintrc.js           # ESLint configuration
+├── .prettierrc            # Prettier configuration
 └── env.yaml                # Environment configuration
 ```
 
@@ -29,12 +41,12 @@ This project follows a microservice architecture pattern using RabbitMQ for mess
 2. **Consumer Services**: Process data from RabbitMQ queues
 3. **Shared Libraries**: Common code used across services
 
-Each service is a self-contained NestJS application with its own configuration, but shares common libraries from the `libs` directory.
+Each service is a self-contained NestJS application with its own configuration, but shares common libraries from the `libs/core` directory.
 
 ## Prerequisites
 
-- Node.js (v16+)
-- Yarn
+- Node.js (v20+)
+- Yarn (v1.22.22+)
 - RabbitMQ server running (can be local or remote)
 
 ## Getting Started
@@ -62,24 +74,40 @@ Each service is a self-contained NestJS application with its own configuration, 
 5. **Run a service**:
    ```bash
    # Run the consumer
-   cd services/copy-comments-old
-   yarn start:consumer
+   yarn comments-old:consumer
    
    # In another terminal, run the producer
-   cd services/copy-comments-old
-   yarn start:producer
+   yarn comments-old:producer
    ```
 
 ## Development
+
+### Code Style and Quality
+
+The project uses ESLint and Prettier for code formatting and quality:
+
+- ESLint rules enforce TypeScript best practices
+- Prettier ensures consistent code formatting
+- Husky pre-commit hooks run linting and formatting
+
+Key ESLint rules:
+- Strict TypeScript checks
+- PascalCase for interfaces and types
+- camelCase for variables
+- UPPER_CASE for enum members
+- No explicit any types
+- Required explicit return types
 
 ### Running in Development Mode
 
 Each service can be run in development mode with hot reloading:
 
 ```bash
-cd services/copy-comments-old
-yarn start:dev:consumer  # For consumer
-yarn start:dev:producer  # For producer
+# Run consumer in dev mode
+yarn comments-old:consumer
+
+# Run producer in dev mode
+yarn comments-old:producer
 ```
 
 ### Adding New Services
@@ -92,9 +120,19 @@ See [libs/README.md](libs/README.md) for detailed instructions on adding new sha
 
 ## Project Components
 
-### RabbitMQ Adapter
+### Core Libraries
 
-The RabbitMQ adapter is a shared library that provides a consistent interface for interacting with RabbitMQ. See [libs/rabbitmq-adapter/README.md](libs/rabbitmq-adapter/README.md) for usage instructions.
+The `libs/core` directory contains shared functionality:
+
+- **Adapters**: External service integrations (e.g., RabbitMQ)
+- **Entities**: Core domain models
+- **DTOs**: Data transfer objects
+- **Repositories**: Data access layer
+- **Constants**: Application-wide constants
+- **Enums**: Enumeration types
+- **Interfaces**: TypeScript interfaces
+- **Types**: Custom type definitions
+- **Utils**: Utility functions
 
 ### Services
 
@@ -104,13 +142,8 @@ Each service in the `services` directory is a standalone NestJS application that
 
 ### Environment Variables
 
-Each service has its own `env.yaml` file with configuration settings. This includes:
+Each service has its own `env.yaml` file with configuration settings:
 
-- RabbitMQ connection settings
-- Service-specific settings
-- Queue and exchange configurations
-
-Example:
 ```yaml
 app:
   name: copy-comments-old
@@ -143,7 +176,7 @@ yarn test
 
 ## Deployment
 
-The services are designed to be deployed as individual containers or processes. Each service can be built separately:
+The services are designed to be deployed as individual containers or processes:
 
 ```bash
 # Build a specific service

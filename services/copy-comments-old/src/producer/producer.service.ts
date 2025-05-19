@@ -1,7 +1,7 @@
 import { Injectable, Logger, OnModuleInit } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
 import { v4 as uuidv4 } from 'uuid';
-import { RabbitMQService } from '@libs/rabbitmq-adapter';
+import { RabbitMQService } from '@libs/core/adapter/rabbitmq-adapter';
 import { CommentCopyPayload, CommentCopyRequestDto, MESSAGE_SEND_DELAY, MESSAGE_SEND_TIMEOUT, MAX_SEND_RETRIES } from '../shared';
 
 @Injectable()
