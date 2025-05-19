@@ -30,12 +30,14 @@ lerna-debug.log*
 .env.development.local
 .env.test.local
 .env.production.local
+.env.yaml
 
 # IDE and editors
 /.idea
 /.vscode
 *.swp
 *.swo
+.idea
 
 # OS
 .DS_Store
